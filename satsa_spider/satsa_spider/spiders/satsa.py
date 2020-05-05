@@ -1,40 +1,55 @@
 # -*- coding: utf-8 -*-
 import scrapy
-import csv
-import pandas as pd
-#from selenium import webdriver
+from scrapy.crawler import CrawlerProcess
+import validators
+
+base_path = "enter path to url_csv.csv"
+
+
+def get_urls():
+    path = base_path + 'url_csv.csv'
+    fl = []
+    with open(path, 'r') as fo:
+        for l in fo.readlines():
+            llist = l.split(',')
+            url = llist[1]
+            valid = validators.url(url)
+            if not valid:
+                continue
+            fl.append(url + "/#tabs-4")
+
+    return fl
+
 
 class SatsaSpider(scrapy.Spider):
     name = 'satsa'
     allowed_domains = ['www.satsa.com']
-    start_urls = ['http://www.satsa.com/item/all-africa-tours/'] #scrape test
+    start_urls = get_urls()
 
-    #f = open('C:/Users/User/Desktop/satsa_spider/satsa_spider/spiders/url_csv.csv','r')
-    #reader = csv.reader(f)
-    #url_dict = {}
-    #for row in reader:                          #get data from excel into dict
-    #    url_dict[row[0]] = {'url_link':row[1]}
+    def parse(self, response):
+        fjson = {}
+        fjson["address"] = response.css(".item-address > .address + dd::text").get()
+        fjson["gps"] = response.css(".item-address > .gps + dd::text").get()
+        fjson["tel"] = response.css(".item-address > .phone + dd::text").get()
+        fjson["email"] = response.css(".item-address > .email + dd > a::text").get()
+        fjson["web"] = response.css(".item-address > .web + dd > a::text").get()
 
-#    for value in url_dict.values():            # iterate through links to be scraped from
-        #print(value)
+        for i in range(len(response.css(".item-address > .fax"))):
+            text = response.css(".item-address > .fax::text")[i].get()
+            if text == "Skype":
+                fjson["skype"] = response.css(".item-address > .fax + dd::text")[i].get()
+                pass
+            elif text == "Fax":
+                fjson["fax"] = response.css(".item-address > .fax + dd::text")[i].get()
+                pass
+            elif text == "Contact:":
+                fjson["contact_user"] = response.css(".item-address > .fax + dd::text")[i].get()
+
+        with open(base_path + 'data.txt', "a") as fo:
+            fo.write("\n"+str(fjson))
+            fo.flush()
 
 
-    df = pd.read_csv('C:/Users/User/Desktop/satsa_spider/satsa_spider/spiders/url_csv.csv')            # read csv panda
-    for url in df['url_name'].unique():
-        next_page = url
-    #    print(url)
-    #    start_urls = "'"+url+"''"
-    #def start_requests(self):                # Selenium test
-    #    self.driver = webdriver.Chrome('/webdrivers/chromedriver')
-    #    self.driver('')
-
-        def parse(self, response): #scrapetest
-    #   infoCategory =  response.xpath('//dt/text()').extract()
-    #    infoCategory =  response.xpath('//*[@class=address]').extract()
-    #   response.xpath('//a[@href ="https://www.satsa.com/cat/tour-operatordmc/"]/text()')
-            data =  response.xpath('//dd/text()').extract()#scrapetest
-    #   tourType = listings =  response.xpath('//a/text()').extract()
-    #    for infoCategory in listings:
-    #    print infoCategory
-            for info in data :          #scrapetest
-                yield{'Info': info}     #scrapetest
+process = CrawlerProcess({'USER_AGENT': 'Mozilla/5.0 (Linux; Android 8.0.0; SM-G960F Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.84 Mobile Safari/537.36'})
+process.crawl(SatsaSpider)
+process.start()  # the script will block here until the crawling is finished

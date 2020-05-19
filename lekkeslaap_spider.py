@@ -42,6 +42,8 @@ class LekkeslaapSpiderSpider(scrapy.Spider):
     allowed_domains = ['lekkeslaap.co.za']
     start_urls = ['http://www.lekkeslaap.co.za/akkommodasie-in/kaapstad-middestad/']
 
+
+
     def parse(self, response):
         listings = response.css(".number_results_heading").extract()
         listings_num = re.search('[0-9]+', str(listings)).group()
@@ -56,10 +58,29 @@ class LekkeslaapSpiderSpider(scrapy.Spider):
             next_page = 'http://www.lekkeslaap.co.za/akkommodasie-in/kaapstad-middestad/' + str(i)
             yield scrapy.Request(next_page, callback=self.parse_listing)
 
+            def _init_(self, subject=None):
+                self.subject = subject
+                if self.subject:
+                    subject_url = response.xpath('//a[@class="'+ self.subject + '"]/@href').extract_first()
+                    absolute_subject_url = response.urljoin(subject_url)
+                    yield Request(absolute_subject_url, callback=self.parse_subject)
+                else:
+                    self.log('Scraping all subjects.')
+                    subjects =  response.xpath("//a[@class='name text']/@href").extract()
+                    for subject in subjects:
+                        absolute_subject_url = response.urljoin(subject)
+                        yield Request(absolute_subject_url, callback=self.parse_subject)
+                        fjson["rating"] = response.css(".font-weight-bold.mr-1::text").extract()
+                        fjson["title.pg2"] = response.css("#estabTabScroll span::text").extract()
+                        fjson["address"] = response.css("u::text").extract()
+
 
     def parse_listing(self, response):
 
+
+
         fjson = {}
+
         #fjson["title"] = response.css(".name::text").extract() worksfine scrapes all names per page
         for t in range(1,11):
             fjson["title"] = response.css(".big-photo:nth-child("+str(t)+") .name::text").extract()
@@ -73,14 +94,8 @@ class LekkeslaapSpiderSpider(scrapy.Spider):
             #page = response.xpath("//div[@class = 'page_number_selected']/text()").extract()
             fjson["page1"] = response.xpath("//div[@class = 'number_results']/table/tr/td/text()").extract()
 
-            fjson["rating"] = response.css(".big-photo:nth-child("+str(t)+") .full").extract()
-            numberRate = re.search('[0-9]+', str(fjson["rating"]))
-            rating_acc=0
-            for x in range(1,5):
-                if numberRate is None:
-                    rating_acc = rating_acc + 1
-            print(numberRate)
-            print(rating_acc)
+
+
             #print(fjson["rating"])
 
             #fjson["number_of_people"] = response.xpath(".big-photo:nth-child("+str(t)+") .meta::text").extract()
@@ -90,7 +105,7 @@ class LekkeslaapSpiderSpider(scrapy.Spider):
         #fjson["rating"] = response.css(".big-photo:nth-child("+str(t)+") .full").extract()
         #print(title)
 
-            with open('C:/Users/User/Desktop/lekkeslaap/lekkeslaap/spiders/testrating.csv', "a") as fo:
+            with open('C:/Users/User/Desktop/lekkeslaap/lekkeslaap/spiders/19.05.2020Test1.csv', "a") as fo:
                 fo.write("\n"+str(fjson))
                 fo.flush()
 
